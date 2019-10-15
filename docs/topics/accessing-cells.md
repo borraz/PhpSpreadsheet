@@ -34,6 +34,61 @@ $spreadsheet->getActiveSheet()
     ->setValue('Some value');
 ```
 
+### Creating a new Cell
+
+If you make a call to `getCell()`, and the cell doesn't already exist, then
+PhpSpreadsheet will (by default) create the cell for you. If you don't want
+to create a new cell, then you can pass a second argument of false, and then
+`getCell()` will return a null if the cell doesn't exist.
+
+### BEWARE: Cells assigned to variables as a Detached Reference
+
+As an "in-memory" model, PHPSpreadsheet can be very demanding of memory,
+particularly when working with large spreadsheets. One technique used to
+reduce this memory overhead is cell caching, so cells are actually
+maintained in a collection that may or may not be held in memory while you
+are working with the spreadsheet. Because of this, a call to `getCell()`
+(or any similar method) returns the cell data, and a pointer to the collection.
+While this is not normally an issue, it can become significant
+if you assign the result of a call to `getCell()` to a variable. Any
+subsequent calls to retrieve other cells will unset that pointer, although
+the cell object will still retain its data values.
+
+What does this mean? Consider the following code:
+
+```
+$spreadSheet = new Spreadsheet();
+$workSheet = $spreadSheet->getActiveSheet();
+
+// Set details for the formula that we want to evaluate, together with any data on which it depends
+$workSheet->fromArray(
+    [1, 2, 3],
+    null,
+    'A1'
+);
+
+$cellC1 = $workSheet->getCell('C1');
+echo 'Value: ', $cellC1->getValue(), '; Address: ', $cellC1->getCoordinate(), PHP_EOL;
+
+$cellA1 = $workSheet->getCell('A1');
+echo 'Value: ', $cellA1->getValue(), '; Address: ', $cellA1->getCoordinate(), PHP_EOL;
+
+echo 'Value: ', $cellC1->getValue(), '; Address: ', $cellC1->getCoordinate(), PHP_EOL;
+``` 
+
+The call to `getCell('C1')` returns the cell at `C1` containing its value (`3`),
+together with its link to the collection (used to identify its
+address/coordinate `C1`). The subsequent call to access cell `A1`
+modifies the value of `$cellC1`, detaching its link to the collection.
+
+So when we try to display the value and address a second time, we can display
+its value, but trying to display its address/coordinate will throw an
+exception because that link has been set to null.
+
+__Note:__ There are some internal methods that will fetch other cells from the
+collection, and this too will detach the link to the collection from any cell
+that you might have assigned to a variable.
+
 ## Excel DataTypes
 
 MS Excel supports 7 basic datatypes:
@@ -85,6 +140,33 @@ Formats handled by the advanced value binder include:
 
 You can read more about value binders later in this section of the
 documentation.
+
+### Setting a formula in a Cell
+
+As stated above, if you store a string value with the first character an `=`
+in a cell. PHPSpreadsheet will treat that value as a formula, and then you
+can evaluate that formula by calling `getCalculatedValue()` against the cell.
+
+There may be times though, when you wish to store a value beginning with `=`
+as a string, and that you don't want PHPSpreadsheet to evaluate as though it
+was a formula.
+
+To do this, you need to "escape" the value by setting it as "quoted text".
+
+```
+// Set cell A4 with a formula
+$spreadsheet->getActiveSheet()->setCellValue(
+    'A4',
+    '=IF(A3, CONCATENATE(A1, " ", A2), CONCATENATE(A2, " ", A1))'
+);
+$spreadsheet->getActiveSheet()->getCell('A4')
+    ->getStyle()->setQuotePrefix(true);
+```
+
+Then, even if you ask PHPSpreadsheet to return the calculated value for cell
+`A4`, it will return `=IF(A3, CONCATENATE(A1, " ", A2), CONCATENATE(A2, " ", A1))`
+as a string, and not try to evaluate the formula.
+
 
 ### Setting a date and/or time value in a cell
 
@@ -178,13 +260,13 @@ It is also possible to set a range of cell values in a single call by
 passing an array of values to the `fromArray()` method.
 
 ``` php
-$arrayData = array(
-    array(NULL, 2010, 2011, 2012),
-    array('Q1',   12,   15,   21),
-    array('Q2',   56,   73,   86),
-    array('Q3',   52,   61,   69),
-    array('Q4',   30,   32,    0),
-);
+$arrayData = [
+    [NULL, 2010, 2011, 2012],
+    ['Q1',   12,   15,   21],
+    ['Q2',   56,   73,   86],
+    ['Q3',   52,   61,   69],
+    ['Q4',   30,   32,    0],
+];
 $spreadsheet->getActiveSheet()
     ->fromArray(
         $arrayData,  // The data to set
@@ -201,7 +283,7 @@ and columns. A 1-d array will be treated as a single row, which is
 particularly useful if you're fetching an array of data from a database.
 
 ``` php
-$rowArray = array('Value1', 'Value2', 'Value3', 'Value4');
+$rowArray = ['Value1', 'Value2', 'Value3', 'Value4'];
 $spreadsheet->getActiveSheet()
     ->fromArray(
         $rowArray,   // The data to set
@@ -218,7 +300,7 @@ the following will convert it into an appropriately structured 2-d array
 that can be fed to the `fromArray()` method:
 
 ``` php
-$rowArray = array('Value1', 'Value2', 'Value3', 'Value4');
+$rowArray = ['Value1', 'Value2', 'Value3', 'Value4'];
 $columnArray = array_chunk($rowArray, 1);
 $spreadsheet->getActiveSheet()
     ->fromArray(
@@ -426,9 +508,9 @@ for ($row = 1; $row <= $highestRow; ++$row) {
 echo '</table>' . PHP_EOL;
 ```
 
-Note that we can't use a &lt;= comparison here, because 'AA' would match
-as &lt;= 'B', so we increment the highest column letter and then loop
-while \$col != the incremented highest column.
+Note that we can't use a `<=` comparison here, because `'AA'` would match
+as `<= 'B'`, so we increment the highest column letter and then loop
+while `$col !=` the incremented highest column.
 
 ## Using value binders to facilitate data entry
 

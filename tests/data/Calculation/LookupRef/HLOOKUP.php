@@ -275,4 +275,24 @@ return [
         2,
         true,
     ],
+    [
+        5,
+        'x',
+        [
+            ['Selection column', '0', '0', '0', '0', 'x', 'x', 'x', 'x', 'x'],
+            ['Value to retrieve', 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        ],
+        2,
+        false
+    ],
+    [
+        2,
+        'B',
+        [
+            ['Selection column', 'C', 'B', 'A'],
+            ['Value to retrieve', 3, 2, 1]
+        ],
+        2,
+        false
+    ],
 ];

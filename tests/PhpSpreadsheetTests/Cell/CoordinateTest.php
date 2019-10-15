@@ -243,10 +243,6 @@ class CoordinateTest extends TestCase
     {
         $this->expectException(\TypeError::class);
 
-        if (PHP_MAJOR_VERSION < 7) {
-            $this->markTestSkipped('Cannot catch type hinting error with PHP 5.6');
-        }
-
         $cellRange = '';
         Coordinate::buildRange($cellRange);
     }
@@ -313,6 +309,24 @@ class CoordinateTest extends TestCase
     public function providerExtractAllCellReferencesInRange()
     {
         return require 'data/CellExtractAllCellReferencesInRange.php';
+    }
+
+    /**
+     * @dataProvider providerInvalidRange
+     *
+     * @param string $range
+     */
+    public function testExtractAllCellReferencesInRangeInvalidRange($range)
+    {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Invalid range: "' . $range . '"');
+
+        Coordinate::extractAllCellReferencesInRange($range);
+    }
+
+    public function providerInvalidRange()
+    {
+        return [['Z1:A1'], ['A4:A1'], ['B1:A1'], ['AA1:Z1']];
     }
 
     /**
